@@ -22,7 +22,7 @@
     <button class="test-btn" onclick="testVibration()">Test Vibration</button>
     <div id="fullscreen" class="fullscreen-container">
       <button class="close-btn" id="closeBtn">Close</button>
-      <video id="fullscreenVideo" class="fullscreen" controls autoplay></video>
+      <video id="fullscreenVideo" class="fullscreen" controls muted loop autoplay playsinline preload="metadata" crossorigin="anonymous"></video>
     </div>
 
     <script>
@@ -48,7 +48,7 @@
         const card = document.createElement("div");
         card.className = "card";
         card.innerHTML = `
-          <video src="${video.url}" muted loop autoplay></video>
+          <video src="${video.url}" muted loop autoplay playsinline preload="metadata" crossorigin="anonymous"></video>
           <div class="title">${video.title}</div>
         `;
         card.onclick = () => openFullscreen(video.url);
@@ -80,7 +80,9 @@
       }
 
       function setupAudioAnalysis(video) {
+        console.log("Before audtio context")
         if (!window.AudioContext) return;
+                console.log("After audtio context")
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const source = audioContext.createMediaElementSource(video);
         const analyser = audioContext.createAnalyser();
@@ -92,8 +94,10 @@
         analyser.connect(audioContext.destination);
 
         function detectPeaks() {
+                  console.log("inside detectPeaks")
           analyser.getByteFrequencyData(dataArray);
           const average = dataArray.reduce((sum, val) => sum + val, 0) / bufferLength;
+               console.log("average",average)
           if (average > 170 && navigator.vibrate) {
             navigator.vibrate([50, 100, 50]);
           }
