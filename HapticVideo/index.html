@@ -1,142 +1,123 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Haptic Video Gallery</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0;}
-    body{font-family:sans-serif;background:#111;color:#fff;}
-    h1{padding:1rem;text-align:center;}
-    #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;padding:1rem;}
-    .thumb{position:relative;cursor:pointer;border-radius:8px;overflow:hidden;border:2px solid #333;transition:transform .2s ease;}
-    .thumb:hover{transform:scale(1.05);}
-    .thumb img,.thumb video{width:100%;height:100%;object-fit:cover;display:block;}
-    .thumb::after{content:'\25BA';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:3rem;color:#fff;text-shadow:0 0 10px #000;pointer-events:none;}
-    video#player{position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:contain;background:#000;z-index:1000;display:none;}
-  </style>
-</head>
-<body>
-  <h1>Haptic Video Gallery</h1>
-  <section id="grid"></section>
-  <video id="player" controls playsinline></video>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Haptic Video App</title>
+    <style>
+      body { margin: 0; font-family: sans-serif; background: #111; color: #fff; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; padding: 1rem; }
+      .card { background: #222; border-radius: 8px; overflow: hidden; cursor: pointer; transition: transform 0.2s; }
+      .card:hover { transform: scale(1.05); }
+      .card video { width: 100%; height: 140px; object-fit: cover; }
+      .title { padding: 0.5rem; font-weight: bold; }
+      .fullscreen-container { position: fixed; inset: 0; background: black; display: none; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; }
+      .close-btn { position: absolute; top: 1rem; right: 1rem; background: #fff; color: #000; padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; z-index: 10000; }
+      .test-btn { position: fixed; bottom: 1rem; left: 1rem; background: #444; color: #fff; padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; z-index: 10000; }
+      video.fullscreen { width: 100vw; height: 100vh; object-fit: contain; }
+    </style>
+  </head>
+  <body>
+    <div id="videoGrid" class="grid"></div>
+    <button class="test-btn" onclick="testVibration()">Test Vibration</button>
+    <div id="fullscreen" class="fullscreen-container">
+      <button class="close-btn" id="closeBtn">Close</button>
+      <video id="fullscreenVideo" class="fullscreen" controls autoplay></video>
+    </div>
 
-  <script>
-  // --- sample playlist -----------------------------------------------------
-  const sampleVideos = [
-    {
-      title: "City Traffic 5s",
-      url: "https://download.samplelib.com/mp4/sample-5s.mp4",
-      thumb: "https://dummyimage.com/400x225/000/fff.png&text=Traffic+5s"
-    },
-    {
-      title: "City Traffic 15s",
-      url: "https://download.samplelib.com/mp4/sample-15s.mp4",
-      thumb: "https://dummyimage.com/400x225/000/fff.png&text=Traffic+15s"
-    },
-    {
-      title: "Big Buck Bunny (10 min)",
-      url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-      thumb: "https://peach.blender.org/wp-content/uploads/title_anouncement.jpg"
-    }
-  ];
+    <script>
+      const sampleVideos = [
+        {
+          title: "Car Chase",
+          url: "https://www.w3schools.com/html/mov_bbb.mp4"
+        },
+        {
+          title: "Gun Fight",
+          url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+        },
+        {
+          title: "Motorcycle Scene",
+          url: "https://cdn.videvo.net/videvo_files/video/free/2013-08/large_watermarked/Motorcycle_Fast_Ride_preview.mp4"
+        }
+      ];
 
-  // ------------------------------------------------------------------------
-  const grid = document.getElementById('grid');
-  const player = document.getElementById('player');
-  let audioCtx, analyser, freqData;
+      const videoGrid = document.getElementById("videoGrid");
+      const fullscreen = document.getElementById("fullscreen");
+      const fullscreenVideo = document.getElementById("fullscreenVideo");
+      const closeBtn = document.getElementById("closeBtn");
 
-  // build thumbnail grid ----------------------------------------------------
-  sampleVideos.forEach(v => {
-    const el = document.createElement('div');
-    el.className = 'thumb';
-    el.title = v.title;
-    const img = document.createElement('img');
-    img.src = v.thumb;
-    img.alt = v.title;
-    el.appendChild(img);
-    el.addEventListener('click', () => playVideo(v.url));
-    grid.appendChild(el);
-  });
+      closeBtn.addEventListener("click", closeFullscreen);
 
-  // play selected video in fullscreen --------------------------------------
-  async function playVideo(url){
-    player.src = url;
-    player.style.display = 'block';
-    await player.play();
-    if (player.requestFullscreen) {
-      try { await player.requestFullscreen(); } catch(_){}
-    }
-    setupAudioAnalysis();
-  }
+      sampleVideos.forEach(video => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <video src="${video.url}" muted loop autoplay></video>
+          <div class="title">${video.title}</div>
+        `;
+        card.onclick = () => openFullscreen(video.url);
+        videoGrid.appendChild(card);
+      });
 
-  // hide player when done ---------------------------------------------------
-  function cleanup(){
-    player.style.display = 'none';
-    if (document.fullscreenElement) document.exitFullscreen();
-    if (audioCtx){
-      audioCtx.close();
-      audioCtx = null;
-    }
-  }
-  player.addEventListener('pause', cleanup);
-  player.addEventListener('ended', cleanup);
+      function openFullscreen(url) {
+        fullscreenVideo.src = url;
+        fullscreen.style.display = "flex";
+        requestHapticPermission();
+        setupAudioAnalysis(fullscreenVideo);
+      }
 
-  // ------------------------------------------------------------------------
-  // naive audio‑event detection -> haptic feedback
-  // ------------------------------------------------------------------------
-  function setupAudioAnalysis(){
-    if (!('vibrate' in navigator)) return; // device has no haptics
+      function closeFullscreen() {
+        fullscreenVideo.pause();
+        fullscreenVideo.src = "";
+        fullscreen.style.display = "none";
+      }
 
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return; // unsupported browser
+      function requestHapticPermission() {
+        if (navigator.permissions && navigator.permissions.query) {
+          navigator.permissions.query({ name: "vibrate" }).catch(() => {
+            // Not all browsers support explicit vibration permissions
+          });
+        }
+        if (navigator.vibrate) {
+          navigator.vibrate(10);
+        }
+      }
 
-    audioCtx = new AC();
-    const src = audioCtx.createMediaElementSource(player);
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 2048;
-    src.connect(analyser);
-    analyser.connect(audioCtx.destination);
+      function setupAudioAnalysis(video) {
+        if (!window.AudioContext) return;
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContext.createMediaElementSource(video);
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
 
-    freqData = new Uint8Array(analyser.frequencyBinCount);
-    detect();
-  }
+        source.connect(analyser);
+        analyser.connect(audioContext.destination);
 
-  function f2i(freq,sampleRate,fftSize){
-    return Math.round(freq / (sampleRate/fftSize));
-  }
+        function detectPeaks() {
+          analyser.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((sum, val) => sum + val, 0) / bufferLength;
+          if (average > 170 && navigator.vibrate) {
+            navigator.vibrate([50, 100, 50]);
+          }
+          if (!video.paused && !video.ended) requestAnimationFrame(detectPeaks);
+        }
 
-  function detect(){
-    if (!analyser) return;
-    analyser.getByteFrequencyData(freqData);
+        detectPeaks();
+      }
 
-    const sr = audioCtx.sampleRate;
-    const fft = analyser.fftSize;
+      function testVibration() {
+        if (navigator.vibrate) {
+          navigator.vibrate([200, 100, 200]);
+        }
+      }
 
-    // car rev ~ 70–250 Hz, gunshot spike ~ 2–6 kHz
-    const lowStart = f2i(70,sr,fft);
-    const lowEnd   = f2i(250,sr,fft);
-    const hiStart  = f2i(2000,sr,fft);
-    const hiEnd    = f2i(6000,sr,fft);
-
-    let lowEnergy=0, hiEnergy=0;
-    for (let i=lowStart;i<=lowEnd;i++)   lowEnergy+=freqData[i];
-    for (let i=hiStart;i<=hiEnd;i++)     hiEnergy+=freqData[i];
-    lowEnergy/=(lowEnd-lowStart+1);
-    hiEnergy/=(hiEnd-hiStart+1);
-
-    const now = performance.now();
-    // very simple thresholds – adjust per project
-    if (hiEnergy>200 && (!detect.lastGun || now-detect.lastGun>1000)){
-      navigator.vibrate([0,200,50,200]); // stronger pattern for gunshot
-      detect.lastGun = now;
-    }else if (lowEnergy>180 && (!detect.lastRev || now-detect.lastRev>600)){
-      navigator.vibrate([0,100,30,100]); // shorter pattern for rev
-      detect.lastRev = now;
-    }
-
-    if (!player.paused) requestAnimationFrame(detect);
-  }
-  </script>
-</body>
+      window.addEventListener("load", () => {
+        if (navigator.vibrate) {
+          navigator.vibrate([100, 50, 100]);
+        }
+      });
+    </script>
+  </body>
 </html>
